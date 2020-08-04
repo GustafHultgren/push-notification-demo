@@ -1,17 +1,125 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
+  <head>
+    <title>Push Vue</title>
+    <script src="https://unpkg.com/vue"></script>
+  </head>
+  <body>
+    <h1>Push Notifications Using Node</h1>
+    <div id="app">
+      <button @click="subscribe">subscribe</button>
+      <button @click="sendNotification">push</button>
+      <button @click="unsubscribe">unsubscribe</button>
+    </div>
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Push Notifications Using Node</title>
-</head>
+    <!-- <script src="client.js"></script> -->
+    <script>
+      var app = new Vue({
+        el: '#app',
+        data: {
+          message: 'Hello Vue!',
+        },
+        methods: {
+          async registerSw() {
+            // Register Service Worker
+            console.log('Registering service worker...')
+            if ('serviceWorker' in navigator) {
+              const register = await navigator.serviceWorker.register(
+                '/worker.js',
+                {
+                  scope: '/',
+                }
+              )
+              console.log('Service Worker Registered...')
+            }
+          },
+          async subscribe() {
+            const register = await navigator.serviceWorker.getRegistration()
+            console.log('Subscribing...')
 
-<body>
-  <h1>Push Notifications Using Node</h1>
+            const publicVapidKey =
+              'BJthRQ5myDgc7OSXzPCMftGw-n16F7zQBEN7EUD6XxcfTTvrLGWSIG7y_JxiWtVlCFua0S8MTB5rPziBqNx1qIo'
+            const subscription = await register.pushManager.getSubscription()
+            if (!subscription) {
+              const subscription = await register.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: this.urlBase64ToUint8Array(
+                  publicVapidKey
+                ),
+              })
+              console.log(subscription.toJSON())
+              await fetch('/push/123/subscribe', {
+                method: 'POST',
+                body: JSON.stringify(subscription),
+                headers: {
+                  'content-type': 'application/json',
+                },
+              })
+              console.log('subscribed')
+            }
+          },
+          async unsubscribe() {
+            const sw = await navigator.serviceWorker.getRegistration()
+            const subscription = await sw.pushManager.getSubscription()
+            if (subscription) {
+              await subscription.unsubscribe()
+              console.log('unsubscribed')
+            }
+          },
+          async sendNotification() {
+            const subscription = await this.subscription
+            const notification = {
+              title: 'Hello world!',
+              body: 'this is a push notification',
+            }
+            const payload = { subscription, notification }
+            console.log(payload)
+            // return
+            await fetch('/push/123', {
+              method: 'POST',
+              body: JSON.stringify({ subscription, notification }),
+              headers: {
+                'content-type': 'application/json',
+              },
+            })
+          },
+          urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+            const base64 = (base64String + padding)
+              .replace(/\-/g, '+')
+              .replace(/_/g, '/')
 
-  <script src="client.js"></script>
-</body>
+            const rawData = window.atob(base64)
+            const outputArray = new Uint8Array(rawData.length)
 
+            for (let i = 0; i < rawData.length; ++i) {
+              outputArray[i] = rawData.charCodeAt(i)
+            }
+            return outputArray
+          },
+        },
+        computed: {
+          sw() {
+            if ('serviceWorker' in navigator) {
+              return navigator.serviceWorker.getRegistration()
+            }
+            return Promise.reject(null)
+          },
+          subscription() {
+            return this.sw.then((sw) => sw.pushManager.getSubscription())
+          },
+        },
+        created() {
+          this.registerSw()
+        },
+        mounted() {
+          // const clientScript = document.createElement('script')
+          // clientScript.setAttribute('src', './client.js')
+          // clientScript.async = true
+          // clientScript.setAttribute('ref', 'client')
+          // document.head.appendChild(clientScript)
+        },
+      })
+    </script>
+  </body>
 </html>
