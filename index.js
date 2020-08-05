@@ -28,11 +28,16 @@ app.post("/push/:userId/subscribe", async (req, res) => {
 
   await subscriptionDao.insert({ ...subscription, userId: req.params.userId });
   res.status(201).json({ success: true });
-  return;
+});
+
+app.delete("/push/:userId/unsubscribe", async (req, res) => {
+  const { userId } = req.params;
+  const numRemoved = await subscriptionDao.deleteByUserId(userId).catch(console.error);
+  res.status(200).json({ success: true, numRemoved });
 });
 
 app.post("/push/:userId", async (req, res) => {
-  const { userId } = req.params
+  const { userId } = req.params;
   const { subscription, notification } = req.body;
   const payload = JSON.stringify(notification);
 
@@ -43,7 +48,7 @@ app.post("/push/:userId", async (req, res) => {
       .catch((err) => console.error(err));
   });
 
-  await Promise.all(pushPromises)
+  await Promise.all(pushPromises);
 
   return res.status(201).json({ success: true });
 });
@@ -51,4 +56,3 @@ app.post("/push/:userId", async (req, res) => {
 const port = 5000;
 
 app.listen(port, () => console.log(`Server started on port ${port}`));
-

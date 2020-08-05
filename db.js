@@ -23,6 +23,14 @@ module.exports.subscriptionDao = {
         else resolve(docs)
       })
     })
+  },
+  deleteByUserId(userId){
+    return new Promise((resolve, reject) => {
+      db.remove({userId}, { multi: true }, (err, numRemoved) => {
+        if(err) reject(err)
+        else resolve(numRemoved)
+      })
+    })
   }
 }
 

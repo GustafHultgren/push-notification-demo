@@ -60,6 +60,10 @@
             const sw = await navigator.serviceWorker.getRegistration();
             const subscription = await sw.pushManager.getSubscription();
             if (subscription) {
+              await fetch("/push/123/unsubscribe", {
+                method: "DELETE",
+              });
+
               await subscription.unsubscribe();
               console.log("unsubscribed");
             }
