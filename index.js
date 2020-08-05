@@ -1,44 +1,54 @@
-const express = require('express')
-const webpush = require('web-push')
-const bodyParser = require('body-parser')
-const path = require('path')
+const express = require("express");
+const webpush = require("web-push");
+const bodyParser = require("body-parser");
+const path = require("path");
 
-const app = express()
+const app = express();
 
-const { subscriptionDao } = require('./db')
+const { subscriptionDao } = require("./db");
 
 // Set static path
-app.use(express.static(path.join(__dirname, 'client')))
+app.use(express.static(path.join(__dirname, "client")));
 
-app.use(bodyParser.json())
+app.use(bodyParser.json());
 
 const publicVapidKey =
-  'BJthRQ5myDgc7OSXzPCMftGw-n16F7zQBEN7EUD6XxcfTTvrLGWSIG7y_JxiWtVlCFua0S8MTB5rPziBqNx1qIo'
-const privateVapidKey = '3KzvKasA2SoCxsp0iIG_o9B0Ozvl1XDwI63JRKNIWBM'
+  "BJthRQ5myDgc7OSXzPCMftGw-n16F7zQBEN7EUD6XxcfTTvrLGWSIG7y_JxiWtVlCFua0S8MTB5rPziBqNx1qIo";
+const privateVapidKey = "3KzvKasA2SoCxsp0iIG_o9B0Ozvl1XDwI63JRKNIWBM";
 
-webpush.setVapidDetails('mailto:test@test.com', publicVapidKey, privateVapidKey)
+webpush.setVapidDetails(
+  "mailto:test@test.com",
+  publicVapidKey,
+  privateVapidKey
+);
 
 // Subscribe Route
-app.post('/push/:userId/subscribe', async (req, res) => {
-  // Get pushSubscription object
-  const subscription = req.body
+app.post("/push/:userId/subscribe", async (req, res) => {
+  const subscription = req.body;
 
-  await subscriptionDao.insert({ ...subscription, userId: req.params.userId })
-  // Send 201 - resource created
-  res.status(201).json({ success: true })
-  return
+  await subscriptionDao.insert({ ...subscription, userId: req.params.userId });
+  res.status(201).json({ success: true });
+  return;
+});
 
-})
+app.post("/push/:userId", async (req, res) => {
+  const { userId } = req.params
+  const { subscription, notification } = req.body;
+  const payload = JSON.stringify(notification);
 
-app.post('/push/:userId', async (req, res) => {
-    const { subscription, notification } = req.body
-    const payload = JSON.stringify(notification)
-
-    webpush
+  const subscriptions = await subscriptionDao.findByUserId(userId);
+  const pushPromises = subscriptions.map((subscription) => {
+    return webpush
       .sendNotification(subscription, payload)
-      .catch((err) => console.error(err))
-})
+      .catch((err) => console.error(err));
+  });
 
-const port = 5000
+  await Promise.all(pushPromises)
 
-app.listen(port, () => console.log(`Server started on port ${port}`))
+  return res.status(201).json({ success: true });
+});
+
+const port = 5000;
+
+app.listen(port, () => console.log(`Server started on port ${port}`));
+
